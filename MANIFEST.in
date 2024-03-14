@@ -1,0 +1,18 @@
+include MANIFEST.in
+include requirements.txt
+include *.json
+include *.md
+include *.py
+include *.txt
+recursive-include clefincode_erp *.css
+recursive-include clefincode_erp *.csv
+recursive-include clefincode_erp *.html
+recursive-include clefincode_erp *.ico
+recursive-include clefincode_erp *.js
+recursive-include clefincode_erp *.json
+recursive-include clefincode_erp *.md
+recursive-include clefincode_erp *.png
+recursive-include clefincode_erp *.py
+recursive-include clefincode_erp *.svg
+recursive-include clefincode_erp *.txt
+recursive-exclude clefincode_erp *.pyc

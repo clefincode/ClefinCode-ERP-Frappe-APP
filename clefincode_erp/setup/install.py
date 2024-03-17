@@ -37,7 +37,7 @@ def create_users_profiles():
                     "verified": 1
                 }]                
                 
-                user_contact = frappe.db.get_all("Contact" , {"email_id" : user.name} , "name")
+                user_contact = frappe.db.get_all("Contact" , {"user" : user.name} , "name")
                 if user_contact:
                     frappe.get_doc({
                     "doctype" : "ClefinCode Chat Profile" ,

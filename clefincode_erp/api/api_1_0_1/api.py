@@ -2063,15 +2063,15 @@ def get_contacts(user_email):
     LEFT OUTER JOIN `tabUser` AS User
         ON User.name = Contact.user                     
     WHERE (User.enabled = 1 OR User.enabled IS NULL) AND ContactDetails.type IN ("Chat", "Email")
-    AND ContactDetails.contact_info <> '{user_email}'
+    AND ContactDetails.contact_info <> %s
     ORDER BY Contact.user DESC
-    """ , as_dict = True)
+    """ , (user_email) , as_dict = True)
     for contact in contacts_list:
         contact.contact_details = frappe.db.sql(f"""
         SELECT contact_info , type AS contact_type, `default`
         FROM `tabClefinCode Chat Profile Contact Details`
-        WHERE parent = '{contact.profile_id}' AND type IN ("Chat", "Email")
-        """ , as_dict = True)
+        WHERE parent = %s AND type IN ("Chat", "Email")
+        """  , (contact.profile_id) , as_dict = True)
     return {"results": [{"contacts" : contacts_list}]}
 # ==========================================================================================
 @frappe.whitelist()

@@ -242,6 +242,7 @@ async function send_message(message_info) {
     message_template_type = "",
     only_receive_by = null,
     chat_topic = null,
+    is_screenshot = 0,
   } = message_info;
   const res = await frappe.call({
     method: "clefincode_erp.api.api_1_0_1.api.send",
@@ -263,6 +264,7 @@ async function send_message(message_info) {
       message_template_type: message_template_type,
       only_receive_by: only_receive_by,
       chat_topic: chat_topic,
+      is_screenshot: is_screenshot,
     },
   });
   return await res.message.results[0].new_message_name;

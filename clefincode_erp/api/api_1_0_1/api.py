@@ -23,10 +23,10 @@ passlibctx = None
 if int(frappe_version.split('.')[0]) > 14:
     from frappe.client import get_time_zone
     passlibctx = CryptContext(
-	schemes=[
-		"pbkdf2_sha256",
-		"argon2",
-	],
+    schemes=[
+        "pbkdf2_sha256",
+        "argon2",
+    ],
 )
 else:
     from frappe.utils import get_time_zone
@@ -744,7 +744,7 @@ def get_all_sub_channels_for_contributor(parent_channel , user_email):
 ######################################## Messages ###########################################
 #############################################################################################
 @frappe.whitelist()
-def send(content, user, room , email, send_date , is_first_message = 0, attachment = None , sub_channel = None , is_link = None , is_media = None , is_document = None, is_voice_clip = None , file_id = None , message_type = "" , message_template_type= "", only_receive_by = None , id_message_local_from_app = None, chat_topic = None):
+def send(content, user, room , email, send_date , is_first_message = 0, attachment = None , sub_channel = None , is_link = None , is_media = None , is_document = None, is_voice_clip = None , file_id = None , message_type = "" , message_template_type= "", only_receive_by = None , id_message_local_from_app = None, chat_topic = None, is_screenshot = 0):
     try:
         if is_media or is_document or message_template_type == "Remove User":
             time.sleep(3)
@@ -778,6 +778,15 @@ def send(content, user, room , email, send_date , is_first_message = 0, attachme
             }
         ).insert(ignore_permissions=True)
         
+        if is_screenshot == "1":
+            content = extract_images_from_html(new_message, content, True)
+            is_media = 1
+            file_type = "image"
+            new_message.content = content
+            new_message.is_media = is_media
+            new_message.file_type = file_type       
+            new_message.save(ignore_permissions = True)
+
         if attachment: set_attach_message(attachment, new_message.name)
 
         share_everyone = 0
@@ -2703,4 +2712,69 @@ def get_room_name(room, room_type, sender_email = None):
     else:
         room_name = channel_doc.channel_name    
     return room_name
+#=======================================================================================================
+def extract_images_from_html(doc: "Document", content: str, is_private: bool = False):
+    from frappe.utils.file_manager import safe_b64decode
+    from frappe.utils.image import optimize_image
+    from frappe import safe_decode    
+    import re
+    
+    frappe.flags.has_dataurl = False
 
+    def _save_file(match):
+        data = match.group(1).split("data:")[1]
+        headers, content = data.split(",")
+        mtype = headers.split(";")[0]
+
+        if isinstance(content, str):
+            content = content.encode("utf-8")
+        if b"," in content:
+            content = content.split(b",")[1]
+        content = safe_b64decode(content)
+
+        content = optimize_image(content, mtype)
+
+        if "filename=" in headers:
+            filename = headers.split("filename=")[-1]
+            filename = safe_decode(filename).split(";")[0]
+
+        else:
+            filename = get_random_filename(content_type=mtype)
+
+        if doc.meta.istable:
+            doctype = doc.parenttype
+            name = doc.parent
+        else:
+            doctype = doc.doctype
+            name = doc.name
+
+        _file = frappe.get_doc(
+            {
+                "doctype": "File",
+                "file_name": filename,
+                "attached_to_doctype": doctype,
+                "attached_to_name": name,
+                "content": content,
+                "decode": False,
+                "is_private": is_private,
+            }
+        )
+        _file.save(ignore_permissions=True)
+        file_url = _file.file_url
+        frappe.flags.has_dataurl = True
+
+        return f'<a href="{file_url}" target="_blank"><img src="{file_url}" class="img-responsive chat-image"></a'
+
+    if content and isinstance(content, str):
+        content = re.sub(r'<img[^>]*src\s*=\s*["\'](?=data:)(.*?)["\']', _save_file, content)
+
+    return content
+#=======================================================================================================
+def get_random_filename(content_type: str = None) -> str:
+    from frappe.utils import random_string
+    extn = None
+    if content_type:
+        extn = mimetypes.guess_extension(content_type)
+
+    return random_string(7) + (extn or "")
+#=======================================================================================================

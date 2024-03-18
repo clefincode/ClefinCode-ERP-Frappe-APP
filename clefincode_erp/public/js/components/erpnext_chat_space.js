@@ -949,7 +949,10 @@ export default class ChatSpace {
 
   toggle_voice_clip_icon() {
     const type_message_input = this.$chat_actions.find(".type-message");
-    if (type_message_input.find(".ql-editor").find("p").text() != "") {
+    if (
+      type_message_input.find(".ql-editor").find("p").text() != "" ||
+      type_message_input.find(".ql-editor").find("p").find("img").length > 0
+    ) {
       this.voice_clip.$voice_clip.css("display", "none");
       this.$chat_actions.find(".message-send-button").css("display", "flex");
     } else {
@@ -1354,7 +1357,8 @@ export default class ChatSpace {
 
     if (
       this.$chat_space.find(".ql-editor").find("p").text().trim().length == 0 &&
-      !attachment
+      !attachment &&
+      this.$chat_space.find(".ql-editor").find("img").length == 0
     ) {
       return;
     }
@@ -1365,6 +1369,10 @@ export default class ChatSpace {
       (this.is_document = null),
       (this.is_voice_clip = null);
     let chat_room;
+    let is_screenshot = 0;
+    if (this.$chat_space.find(".ql-editor").find("p").find("img").length > 0) {
+      is_screenshot = 1;
+    }
 
     if (!this.profile.room) {
       await this.create_direct_channel(content);
@@ -1692,6 +1700,7 @@ export default class ChatSpace {
       file_id: file_id,
       send_date: utc_send_date,
       chat_topic: this.chat_topic,
+      is_screenshot: is_screenshot,
     };
     this.last_chat_space_message = await send_message(message_info);
   } //End handle_send_message

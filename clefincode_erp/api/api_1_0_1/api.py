@@ -990,6 +990,53 @@ def get_messages(room , user_email , room_type , chat_topic = None, remove_date 
     return {"results" : sorted(results, key=lambda d: d["send_date"])}
 # ==========================================================================================
 @frappe.whitelist()
+def get_messages_latest(room , user_email , room_type, remove_date = None , lastmessagedate = None):
+
+
+
+    condition = ""
+    
+    if room_type != "Topic":
+        if room_type != "Contributor":
+            condition = f"chat_channel = '{room}'"
+            if room_type == "Group":
+                if remove_date and remove_date != "":
+                    condition += f" AND send_date <='{remove_date}'"            
+        else: 
+            sub_channels = json.loads(room)
+            sub_channels_list = []
+            for d in sub_channels:
+                sub_channels_list.append(d)
+            sub_channels_str = ', '.join([frappe.db.escape(channel) for channel in sub_channels_list])
+            condition = f"sub_channel IN ({sub_channels_str})"
+    
+    if lastmessagedate and lastmessagedate != "":
+        condition += f" AND send_date >'{lastmessagedate}'"
+    
+
+    results = frappe.db.sql(f"""
+    SELECT content , send_date , sender_email , sender , name AS message_name , is_media , is_document , is_voice_clip , file_id  , message_type, message_template_type , only_receive_by
+    FROM `tabClefinCode Chat Message`
+    WHERE {condition} AND (only_receive_by IS NULL OR only_receive_by = '')
+
+    UNION
+
+    SELECT content , send_date , sender_email , sender , name AS message_name , is_media , is_document , is_voice_clip , file_id  , message_type, message_template_type , only_receive_by
+    FROM `tabClefinCode Chat Message`
+    WHERE {condition} AND only_receive_by = '{user_email}'
+    
+    ORDER BY send_date DESC 
+
+    """ , as_dict = True)
+    for message in results:
+        message.utc_message_date = message.send_date
+        message.send_date = convert_utc_to_user_timezone(message.send_date, get_user_timezone(user_email)["results"][0]["time_zone"])
+        message.time_zone = get_user_timezone(user_email)["results"][0]["time_zone"]         
+        message.get_messages = 1
+    return {"results" : sorted(results, key=lambda d: d["send_date"])}
+
+# ==========================================================================================
+@frappe.whitelist()
 def mark_messsages_as_read(user , channel = None, parent_channel = None):
     if channel:
         last_message_number = frappe.db.get_value("ClefinCode Chat Channel" , channel , "last_message_number")

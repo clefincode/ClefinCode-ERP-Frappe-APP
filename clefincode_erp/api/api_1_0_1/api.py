@@ -666,7 +666,7 @@ def get_last_sub_channel(room):
     LIMIT 1
     """ , as_dict = True)
     return last_sub_channel[0].name if len(last_sub_channel) == 1 else ""
-# ========================================================================================== 
+# ==========================================================================================
 def get_last_sub_channel_for_user(parent_channel , user_email):
     last_sub_channel = frappe.db.sql(f"""
     SELECT ChatChannel.name
@@ -991,9 +991,7 @@ def get_messages(room , user_email , room_type , chat_topic = None, remove_date 
 # ==========================================================================================
 @frappe.whitelist()
 def get_messages_latest(room , user_email , room_type, remove_date = None , lastmessagedate = None):
-
-
-
+    """This API provides a solution for iOS devices to view new messages through notifications while using another app."""
     condition = ""
     
     if room_type != "Topic":
@@ -1035,6 +1033,136 @@ def get_messages_latest(room , user_email , room_type, remove_date = None , last
         message.get_messages = 1
     return {"results" : sorted(results, key=lambda d: d["send_date"])}
 
+# ==========================================================================================
+@frappe.whitelist()
+def get_latest_channels_updates(user_email , last_message_date):
+    """This API provides a solution for iOS devices to view new messages through notifications while using another app."""    
+
+    results = frappe.db.sql(f"""
+    SELECT
+    ChatChannel.name AS room,
+    NULL AS parent_channel,
+    NULL AS contact ,
+    ChatChannel.modified_date AS send_date,
+    last_message,
+    last_message_number - ChatChannelUser.last_message_read AS user_unread_messages,
+    channel_name,
+    type,
+    NULL AS is_removed,
+    NULL AS remove_date
+
+    FROM `tabClefinCode Chat Channel` AS ChatChannel 
+    INNER JOIN `tabClefinCode Chat Channel User` AS ChatChannelUser  ON ChatChannelUser.parent = ChatChannel.name AND ChatChannelUser.user = '{user_email}'
+    WHERE type = 'Guest' AND ChatChannel.modified_date > '{last_message_date}'
+    
+    UNION ALL
+                            
+    SELECT 
+    DISTINCT ChatChannel.name AS room,
+    NULL AS parent_channel,
+    NULL AS contact ,
+    ChatChannel.modified_date AS send_date ,
+    last_message,
+    ChatChannelUser.channel_last_message_number - ChatChannelUser.last_message_read AS user_unread_messages,
+    channel_name,
+    type,
+    ChatChannelUser.is_removed AS is_removed,
+    ChatChannelUser.remove_date
+
+    FROM `tabClefinCode Chat Channel` AS ChatChannel 
+    INNER JOIN `tabClefinCode Chat Channel User` AS ChatChannelUser  ON ChatChannelUser.parent = ChatChannel.name AND ChatChannelUser.user = '{user_email}'
+    WHERE type = 'Group' AND ChatChannelUser.platform = "Chat" AND ChatChannel.modified_date > '{last_message_date}'
+
+    UNION ALL
+
+    SELECT 
+    ChatChannel.name AS room,
+    NULL AS parent_channel,
+    ChatChannelUser2.user AS contact ,
+    ChatChannel.modified_date AS send_date,
+    last_message,
+    last_message_number - ChatChannelUser.last_message_read AS user_unread_messages,
+    channel_name,
+    type,
+    NULL AS is_removed,
+    NULL AS remove_date
+
+    FROM `tabClefinCode Chat Channel` AS ChatChannel
+    INNER JOIN `tabClefinCode Chat Channel User` AS ChatChannelUser  ON ChatChannelUser.parent = ChatChannel.name AND ChatChannelUser.user = '{user_email}'
+    INNER JOIN `tabClefinCode Chat Channel User` AS ChatChannelUser2  ON ChatChannelUser2.parent = ChatChannel.name AND ChatChannelUser2.user <> '{user_email}'
+    AND type = 'Direct' AND is_parent = 1 AND ChatChannel.modified_date > '{last_message_date}'
+    
+
+    UNION ALL
+
+    SELECT 
+        ChatChannelContributor.channel AS room, 
+        ChatChannel.name AS parent_channel,
+        ChatChannel.channel_creator AS contact, 
+        ChatChannel.modified_date AS send_date, 
+        ChatChannel.last_message,
+        NULL AS user_unread_messages,
+        NULL AS channel_name,
+        'Contributor' AS type,
+        NULL AS is_removed,
+        NULL AS remove_date
+
+    FROM `tabClefinCode Chat Channel` AS ChatChannel  INNER JOIN `tabClefinCode Chat Channel Contributor` AS ChatChannelContributor On
+    ChatChannelContributor.parent = ChatChannel.name
+    AND is_parent = 1 AND ChatChannelContributor.user = '{user_email}'AND ChatChannel.modified_date > '{last_message_date}'
+    GROUP BY ChatChannelContributor.user , ChatChannel.name 
+        
+    """ , as_dict = True)
+    if results:
+        for room in results:
+            if not room.channel_name or room.channel_name == "":
+                if room.type == "Direct":
+                    room.room_name = get_contact_full_name(room.contact)
+                    last_message_info = frappe.db.sql(f""" SELECT sender_email,  message_type FROM `tabClefinCode Chat Message` WHERE chat_channel = '{room.room}' ORDER BY send_date DESC LIMIT 1""" , as_dict = True)[0]
+                    room.sender_email = last_message_info.sender_email
+                    room.last_message_type = last_message_info.message_type
+                elif room.type == "Contributor":
+                    room.room_name = "@" + frappe.get_doc("ClefinCode Chat Channel" , room.parent_channel).get_channel_name_for_contributor()
+                    last_message_info = get_last_sub_channel_for_user(room.parent_channel , user_email)
+                    room.sender_email = last_message_info.sender_email
+                    room.last_message_type = last_message_info.message_type
+                    room.last_message = last_message_info.content if last_message_info.content else ""
+                    room.send_date = get_last_sub_channel_for_user(room.parent_channel , user_email).send_date
+                    room.user_unread_messages = contributor_unread_messages(user_email , room.parent_channel)
+                elif room.type == "Group":
+                    room.room_name = frappe.get_doc("ClefinCode Chat Channel" , room.room).get_group_name()
+                    last_message_info = get_last_message_info(user_email , room.room)
+                    room.last_message = last_message_info.content
+                    room.sender_email = last_message_info.sender_email
+                    room.last_message_type = last_message_info.message_type
+
+                else:
+                    room.room_name = get_contact_full_name(room.contact)
+
+            else:
+                room.room_name = room.channel_name
+                if room.type != "Guest":                
+                    last_message_info = get_last_message_info(user_email , room.room)
+                    room.last_message = last_message_info.content
+                    room.sender_email = last_message_info.sender_email
+                    room.last_message_type = last_message_info.message_type
+            
+            if room.is_removed == 1:
+                last_message_info = get_last_message_info(user_email , room.room , room.remove_date)
+                room.last_message = last_message_info.content
+                room.sender_email = last_message_info.sender_email
+                room.last_message_type = last_message_info.message_type
+                room.send_date = room.remove_date
+            
+            room.utc_message_date = room.send_date
+            room.send_date = convert_utc_to_user_timezone(room.send_date, get_user_timezone(user_email)["results"][0]["time_zone"])
+            # room.last_message_media_type , room.last_message_voice_duration = get_last_message_type(room.type, user_email, room.room if room.type != "Contributor" else room.parent_channel, room.remove_date)
+
+            chat_topic = frappe.get_all("ClefinCode Chat Topic" , "name" , {"chat_channel":room.parent_channel if room.type == "Contributor" else room.room , "topic_status" : "Open"})
+            room.chat_topic = chat_topic[0].name if chat_topic else None
+                       
+    
+    return {"results" : sorted(results, key=lambda d: d["send_date"], reverse=True)}
 # ==========================================================================================
 @frappe.whitelist()
 def mark_messsages_as_read(user , channel = None, parent_channel = None):

@@ -3007,13 +3007,13 @@ def push_notifications(registration_token, information, realtime_type, platform 
                 }
 
             
-            source_url = "https://erp2.clefincode.com/api/method/clefincode_support.api.mobile_notifications.send_notification_via_firebase"            
+            source_url = "https://clefincode.com/api/method/clefincode_support.api.mobile_notifications.send_notification_via_firebase"            
 
             headers = {
             "Content-Type": "application/json",
             }
             
-            response = requests.post(source_url, data=json.dumps(payload), headers=headers)            
+            requests.post(source_url, data=json.dumps(payload), headers=headers)            
 
     except Exception as e:
         frappe.publish_realtime("console" , message = str(e))

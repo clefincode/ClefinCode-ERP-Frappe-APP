@@ -7,9 +7,14 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "enable_portal_support",
+  "enable_mobile_notifications_section_section",
+  "enable_mobile_notifications",
+  "with_message_content",
+  "section_break_4",
   "start_time",
   "end_time",
+  "portal_support_section",
+  "enable_portal_support",
   "assign_to_users_section",
   "role",
   "rule",
@@ -94,12 +99,39 @@
    "fieldtype": "Text",
    "label": "Welcome Message",
    "mandatory_depends_on": "eval: doc.enable_portal_support == 1"
+  },
+  {
+   "fieldname": "enable_mobile_notifications_section_section",
+   "fieldtype": "Section Break",
+   "label": "Mobile Notifications"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_mobile_notifications",
+   "fieldtype": "Check",
+   "label": "Enable Mobile Notifications"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval: doc.enable_mobile_notifications == 1",
+   "fieldname": "with_message_content",
+   "fieldtype": "Check",
+   "label": "With Message Content"
+  },
+  {
+   "fieldname": "section_break_4",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "portal_support_section",
+   "fieldtype": "Section Break",
+   "label": "Portal Support"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-03-14 11:39:54.282792",
+ "modified": "2024-03-20 13:48:16.594299",
  "modified_by": "Administrator",
  "module": "ClefinCode ERP",
  "name": "ClefinCode Chat Settings",

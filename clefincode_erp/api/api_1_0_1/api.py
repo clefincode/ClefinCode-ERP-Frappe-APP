@@ -12,12 +12,12 @@ import pytz
 from moviepy.editor import VideoFileClip
 import io
 import time
-from clefincode_erp.utils.fcm_manager import send_notification_via_firebase
 from bs4 import BeautifulSoup
 from frappe.desk.doctype.notification_log.notification_log import enqueue_create_notification
 from frappe.utils.password import Auth
 from passlib.context import CryptContext
 from frappe import __version__ as frappe_version
+import requests
 
 passlibctx = None
 if int(frappe_version.split('.')[0]) > 14:
@@ -84,9 +84,16 @@ def login(email , password):
 @frappe.whitelist()
 def get_versions():   
     versions = {}
+    send_notification_with_content = 0
     try:
+        enable_mobile_notifications = frappe.db.get_single_value("ClefinCode Chat Settings" , "enable_mobile_notifications")
+        if enable_mobile_notifications == 1:
+            send_notification_with_content = frappe.db.get_single_value("ClefinCode Chat Settings" , "with_message_content")
+
         for app in frappe.get_installed_apps(sort=True):
-            versions.update({app : frappe.get_attr(app + ".__version__")})               
+            versions.update({app : frappe.get_attr(app + ".__version__")})
+
+        versions.update({"enable_mobile_notifications" : enable_mobile_notifications , "send_notification_with_content" : send_notification_with_content})               
 
         return [{'status':1,"description":"Done successfully","data":[versions]}]
     except Exception as e:
@@ -907,7 +914,7 @@ def send(content, user, room , email, send_date , is_first_message = 0, attachme
                         if user_email:
                             results["target_user"] = user_email[0].contact_info                        
                             notification_body = BeautifulSoup(content, 'html.parser').get_text()
-                            send_notification_via_firebase(firebase_token[0].firebase_token, results, "send_message" , user_platform[0].platform.lower() ,"ClefinCode Support" , notification_body)
+                            push_notifications(firebase_token[0].firebase_token, results, "send_message" , user_platform[0].platform.lower() ,"ClefinCode Support" , notification_body)
         
         else:
             for member in channel_doc.members:
@@ -2758,23 +2765,24 @@ def set_typing(user, room, is_typing, last_active_sub_channel = None, mobile_app
                 # frappe.publish_realtime(event="receive_message", message=results, user= contributor.user)
 # ==========================================================================================
 def send_notification(to_user , results, realtime_type, title = None, message_template_type = None):
-    try:        
-        if to_user:
-            registration_token = get_registration_token(to_user)   
-            if registration_token:
-                user_platform = get_platform(to_user)
-                body = None
-                if realtime_type != 'typing':
-                    if to_user == frappe.session.user:
-                        send_notification_via_firebase(registration_token, results, realtime_type, user_platform, None, None, 1)
-                        return                
-                    if realtime_type == "send_message": 
-                        body = get_body_message(results)
+    try: 
+        if check_notifications_status():       
+            if to_user:
+                registration_token = get_registration_token(to_user)   
+                if registration_token:
+                    user_platform = get_platform(to_user)
+                    body = None
+                    if realtime_type != 'typing':
+                        if to_user == frappe.session.user:
+                            push_notifications(registration_token, results, realtime_type, user_platform, None, None, 1)
+                            return                
+                        if realtime_type == "send_message": 
+                            body = get_body_message(results)
+                        else:
+                            body = get_body_message_information(realtime_type)
+                        push_notifications(registration_token, results, realtime_type, user_platform, title, body)                       
                     else:
-                        body = get_body_message_information(realtime_type)
-                    send_notification_via_firebase(registration_token, results, realtime_type, user_platform, title, body)                       
-                else:
-                    send_notification_via_firebase(registration_token, results, realtime_type, user_platform)                                              
+                        push_notifications(registration_token, results, realtime_type, user_platform)                                              
     except Exception as e:
         frappe.publish_realtime("console" , message = e)
 
@@ -2953,3 +2961,63 @@ def get_random_filename(content_type: str = None) -> str:
 
     return random_string(7) + (extn or "")
 #=======================================================================================================
+def get_notifications_settings():
+    send_notification_with_content = 0
+    enable_mobile_notifications = frappe.db.get_single_value("ClefinCode Chat Settings" , "enable_mobile_notifications")
+    if enable_mobile_notifications == 1:
+        send_notification_with_content = frappe.db.get_single_value("ClefinCode Chat Settings" , "with_message_content")
+    
+    return [{"enable_mobile_notifications" : enable_mobile_notifications , "send_notification_with_content" : send_notification_with_content}]
+#=======================================================================================================
+def check_notifications_status():
+    results = get_notifications_settings()[0]
+    if results["enable_mobile_notifications"] == 0:
+        return 0
+    else: return True
+#=======================================================================================================
+def push_notifications(registration_token, information, realtime_type, platform = None ,title = None, body = None, same_user = None):
+    try:
+        payload = None
+        results = get_notifications_settings()[0]
+        if not check_notifications_status():
+            return    
+        else:            
+            info = convert_to_string_values(information)
+            if results["send_notification_with_content"] == 0:
+                if realtime_type == "typing":
+                    return
+                payload = {
+                "registration_token" : registration_token,
+                "info" : "",
+                "realtime_type" : realtime_type,
+                "platform" : platform,
+                "title" : "New Message",
+                "body" : "New Message",
+                "same_user" : same_user            
+                }
+            else:
+                payload = {
+                "registration_token" : registration_token,
+                "info" : info,
+                "realtime_type" : realtime_type,
+                "platform" : platform,
+                "title" : title,
+                "body" : body,
+                "same_user" : same_user            
+                }
+
+            
+            source_url = "https://erp2.clefincode.com/api/method/clefincode_support.api.mobile_notifications.send_notification_via_firebase"            
+
+            headers = {
+            "Content-Type": "application/json",
+            }
+            
+            response = requests.post(source_url, data=json.dumps(payload), headers=headers)            
+
+    except Exception as e:
+        frappe.publish_realtime("console" , message = str(e))
+# ============================================================================
+def convert_to_string_values(data):
+    return {key: str(value) for key, value in data.items()}
+# ============================================================================

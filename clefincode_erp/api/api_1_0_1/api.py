@@ -18,6 +18,7 @@ from frappe.utils.password import Auth
 from passlib.context import CryptContext
 from frappe import __version__ as frappe_version
 import requests
+from clefincode_erp.utils.fcm_notifications import send_notification_via_firebase 
 
 passlibctx = None
 if int(frappe_version.split('.')[0]) > 14:
@@ -2977,7 +2978,6 @@ def check_notifications_status():
 #=======================================================================================================
 def push_notifications(registration_token, information, realtime_type, platform = None ,title = None, body = None, same_user = None):
     try:
-        payload = None
         results = get_notifications_settings()[0]
         if not check_notifications_status():
             return    
@@ -2986,34 +2986,11 @@ def push_notifications(registration_token, information, realtime_type, platform 
             if results["send_notification_with_content"] == 0:
                 if realtime_type == "typing":
                     return
-                payload = {
-                "registration_token" : registration_token,
-                "info" : "",
-                "realtime_type" : realtime_type,
-                "platform" : platform,
-                "title" : "New Message",
-                "body" : "New Message",
-                "same_user" : same_user            
-                }
-            else:
-                payload = {
-                "registration_token" : registration_token,
-                "info" : info,
-                "realtime_type" : realtime_type,
-                "platform" : platform,
-                "title" : title,
-                "body" : body,
-                "same_user" : same_user            
-                }
+                info = ""
+                title = "Chat Notifications"
+                body = "New Message"         
 
-            
-            source_url = "https://clefincode.com/api/method/clefincode_support.api.mobile_notifications.send_notification_via_firebase"            
-
-            headers = {
-            "Content-Type": "application/json",
-            }
-            
-            requests.post(source_url, data=json.dumps(payload), headers=headers)            
+            send_notification_via_firebase(registration_token, info, realtime_type, platform, title, body, same_user)            
 
     except Exception as e:
         frappe.publish_realtime("console" , message = str(e))

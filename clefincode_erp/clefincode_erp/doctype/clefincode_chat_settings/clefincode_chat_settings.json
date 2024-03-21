@@ -132,6 +132,7 @@
   {
    "fieldname": "firebase_server_key_section",
    "fieldtype": "Section Break",
+   "hidden": 1,
    "label": "Firebase Server Key"
   },
   {
@@ -143,7 +144,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-03-21 13:35:41.220648",
+ "modified": "2024-03-21 15:43:00.815395",
  "modified_by": "Administrator",
  "module": "ClefinCode ERP",
  "name": "ClefinCode Chat Settings",

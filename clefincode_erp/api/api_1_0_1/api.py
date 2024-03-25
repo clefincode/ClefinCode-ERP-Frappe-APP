@@ -108,6 +108,12 @@ def check_server():
  
     return [{"status":1,"description":"Done","data":list_app_for_update}]
 # ==========================================================================================
+@frappe.whitelist(allow_guest = False)
+def get_user_theme_mode(email):
+    them = frappe.get_value("User", email,"desk_theme")
+    thems=[]
+    thems.append({'them':str(them)})
+    return [{"status":1,"description":"Done","data":thems}]
 #############################################################################################
 ######################################## Settings ###########################################
 #############################################################################################

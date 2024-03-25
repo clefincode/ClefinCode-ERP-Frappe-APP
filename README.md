@@ -44,6 +44,9 @@ Dedicated Support: Our support section within the app is designed to assist you 
   <img width="1402" src="screenshots/web/set_topic.gif">
   <br>
   <br>
+  <img width="1402" src="screenshots/web/group_details.gif">
+  <br>
+  <br>
 </details>
 
 <hr>
@@ -58,12 +61,37 @@ Dedicated Support: Our support section within the app is designed to assist you 
 
 ## 🚀 Advanced Features for Business Efficiency
 
-- 🔄 **User Mentions**: Flexibly join and contribute to conversations and topic-integrated discussions.
+- 🔄 **User / Doctype Mentions**: Flexibly join and contribute to conversations and topic-integrated discussions.
 - 🌟 **Guest Messaging**: Enhance customer service with a website support portal.
 
 ## 🌍 Access Anywhere, Anytime
 
-- 📲 **Mobile App Availability**: Free to download from [Google Play](https://play.google.com/store/apps/details?id=com.clefincode.chat), keeping you connected whether on the go or at the office.
+- 📲 **Mobile App Availability**: Free to download from [Google Play](https://play.google.com/store/apps/details?id=com.clefincode.chat&hl=en&gl=US) and [App Store](https://apps.apple.com/ae/app/clefincode-chat/id6478499855), keeping you connected whether on the go or at the office.
+    <details>
+    
+    <summary>Show mobile screenshots</summary>
+    <img width="300" src="screenshots/mobile/set_domain.jpeg">
+    <br>
+    <br>
+    <img width="300" src="screenshots/mobile/login.jpeg">
+    <br>
+    <br>
+    <img width="300" src="screenshots/mobile/channel_list.jpeg">
+    <br>
+    <br>
+    <img width="300" src="screenshots/mobile/add_contributor.gif">
+    <br>
+    <br>
+    <img width="300" src="screenshots/mobile/set_topic.gif">
+    <br>
+    <br>
+    <img width="300" src="screenshots/mobile/share_documents.jpeg">
+    <br>
+    <br>
+    <img width="300" src="screenshots/mobile/request_support.jpeg">
+    <br>
+    <br>
+    </details>
 
 ## 💻 Open Source and Customizable
 
@@ -98,8 +126,8 @@ Once you have setup your bench and your site, you can install the app via the fo
 ```bash
 bench get-app https://github.com/clefincode/ClefinCode-ERP-Frappe-APP.git
 bench --site yoursite.name install-app clefincode_erp
-bench build
 bench --site yoursite.name migrate
+bench build
 ```
 
 ## Reporting Bugs
